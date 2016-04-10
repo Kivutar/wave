@@ -73,40 +73,41 @@ int main(void)
     glfwSetKeyCallback(window, key_callback);
 
     GLbyte vShaderStr[] =
-        "attribute vec3 vPosition;    \n"
-        "uniform float time;          \n"
-        "varying vec3 v;              \n"
-        "float iqhash( float n )\n"
-        "{\n"
-        "  return fract(sin(n)*43758.5453);\n"
-        "}\n"
-        "float noise( vec3 x )\n"
-        "{\n"
-        "  vec3 p = floor(x);\n"
-        "  vec3 f = fract(x);\n"
-        "  f = f*f*(3.0-2.0*f);\n"
-        "  float n = p.x + p.y*57.0 + 113.0*p.z;\n"
-        "  return mix(mix(mix( iqhash(n+0.0 ), iqhash(n+1.0 ),f.x),\n"
-        "  mix( iqhash(n+57.0 ), iqhash(n+58.0 ),f.x),f.y),\n"
-        "  mix(mix( iqhash(n+113.0), iqhash(n+114.0),f.x),\n"
-        "  mix( iqhash(n+170.0), iqhash(n+171.0),f.x),f.y),f.z);\n"
-        "}\n"
-        "void main()                  \n"
-        "{                            \n"
-        "  v = vPosition;             \n"
-        "  vec3 v2 = v; \n"
-        "  v2.x = v2.x + time/2.0; \n"
-        "  v.y = cos(v.x+v.z*0.5+time)/7.0 + noise(v2.xyz)/4.0;\n"
-        "  gl_Position = vec4(v, 1.0);\n"
-        "}                            \n";
+        "attribute vec3 vPosition;                                      \n"
+        "uniform float time;                                            \n"
+        "varying vec3 v;                                                \n"
+        "float iqhash( float n )                                        \n"
+        "{                                                              \n"
+        "  return fract(sin(n)*43758.5453);                             \n"
+        "}                                                              \n"
+        "float noise( vec3 x )                                          \n"
+        "{                                                              \n"
+        "  vec3 p = floor(x);                                           \n"
+        "  vec3 f = fract(x);                                           \n"
+        "  f = f*f*(3.0-2.0*f);                                         \n"
+        "  float n = p.x + p.y*57.0 + 113.0*p.z;                        \n"
+        "  return mix(mix(mix( iqhash(n+0.0 ), iqhash(n+1.0 ),f.x),     \n"
+        "  mix( iqhash(n+57.0 ), iqhash(n+58.0 ),f.x),f.y),             \n"
+        "  mix(mix( iqhash(n+113.0), iqhash(n+114.0),f.x),              \n"
+        "  mix( iqhash(n+170.0), iqhash(n+171.0),f.x),f.y),f.z);        \n"
+        "}                                                              \n"
+        "void main()                                                    \n"
+        "{                                                              \n"
+        "  v = vPosition;                                               \n"
+        "  vec3 v2 = v;                                                 \n"
+        "  v2.x = v2.x + time/2.0;                                      \n"
+        "  v2.z = v.z * 3.0;                                            \n"
+        "  v.y = -cos((v.x+v.z/3.0+time)*2.0)/10.0 + noise(v2.xyz)/4.0; \n"
+        "  gl_Position = vec4(v, 1.0);                                  \n"
+        "}                                                              \n";
 
     GLbyte fShaderStr[] =
-        "uniform float time;                                    \n"
-        "varying vec3 v;                                        \n"
-        "void main()                                            \n"
-        "{                                                      \n"
+        "uniform float time;                         \n"
+        "varying vec3 v;                             \n"
+        "void main()                                 \n"
+        "{                                           \n"
         "  gl_FragColor = vec4(1.0, 1.0, 1.0, 0.25); \n"
-        "}                                                      \n";
+        "}                                           \n";
 
     GLuint vertexShader;
     GLuint fragmentShader;
@@ -161,16 +162,16 @@ int main(void)
 
     timeLoc = glGetUniformLocation(programObject, "time");
 
-    GLfloat vertices[3072];
-    int indices[1950];
+    GLfloat vertices[1536];
+    int indices[1024];
     int rows = 16;
-    int columns = 64;
+    int columns = 32;
 
     // Set up vertices
     for (int r = 0; r < rows; ++r) {
         for (int c = 0; c < columns; ++c) {
             int index = r*columns + c;
-            vertices[3*index + 0] = ((float) c)/32.0f - 1.0;
+            vertices[3*index + 0] = ((float) c)/16.0f - 1.0;
             vertices[3*index + 1] = 0.0f;
             vertices[3*index + 2] = ((float) r)/8.0f - 1.0;
         }
@@ -214,7 +215,7 @@ int main(void)
         glUniform1f(timeLoc, t);
 
         glVertexPointer( 3, GL_FLOAT, 0, vertices );
-        glDrawElements( GL_TRIANGLE_STRIP, 1950, GL_UNSIGNED_INT, indices );
+        glDrawElements( GL_TRIANGLE_STRIP, 1024, GL_UNSIGNED_INT, indices );
 
         glfwSwapBuffers(window);
         glfwPollEvents();
