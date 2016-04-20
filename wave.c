@@ -73,41 +73,61 @@ int main(void)
     glfwSetKeyCallback(window, key_callback);
 
     GLbyte vShaderStr[] =
-        "attribute vec3 vPosition;                                      \n"
-        "uniform float time;                                            \n"
-        "varying vec3 v;                                                \n"
-        "float iqhash( float n )                                        \n"
-        "{                                                              \n"
-        "  return fract(sin(n)*43758.5453);                             \n"
-        "}                                                              \n"
-        "float noise( vec3 x )                                          \n"
-        "{                                                              \n"
-        "  vec3 p = floor(x);                                           \n"
-        "  vec3 f = fract(x);                                           \n"
-        "  f = f*f*(3.0-2.0*f);                                         \n"
-        "  float n = p.x + p.y*57.0 + 113.0*p.z;                        \n"
-        "  return mix(mix(mix( iqhash(n+0.0 ), iqhash(n+1.0 ),f.x),     \n"
-        "  mix( iqhash(n+57.0 ), iqhash(n+58.0 ),f.x),f.y),             \n"
-        "  mix(mix( iqhash(n+113.0), iqhash(n+114.0),f.x),              \n"
-        "  mix( iqhash(n+170.0), iqhash(n+171.0),f.x),f.y),f.z);        \n"
-        "}                                                              \n"
-        "void main()                                                    \n"
-        "{                                                              \n"
-        "  v = vPosition;                                               \n"
-        "  vec3 v2 = v;                                                 \n"
-        "  v2.x = v2.x + time/2.0;                                      \n"
-        "  v2.z = v.z * 3.0;                                            \n"
-        "  v.y = -cos((v.x+v.z/3.0+time)*2.0)/10.0 + noise(v2.xyz)/4.0; \n"
-        "  gl_Position = vec4(v, 1.0);                                  \n"
-        "}                                                              \n";
+        "#if __VERSION__ >= 130\n"
+        "#define COMPAT_VARYING out\n"
+        "#define COMPAT_ATTRIBUTE in\n"
+        "#else\n"
+        "#define COMPAT_VARYING varying\n"
+        "#define COMPAT_ATTRIBUTE attribute\n"
+        "#endif\n"
+        "COMPAT_ATTRIBUTE vec3 vPosition;\n"
+        "uniform float time;\n"
+        "COMPAT_VARYING vec3 v;\n"
+        "COMPAT_VARYING vec3 fragVertexEc;\n"
+        "float iqhash( float n )\n"
+        "{\n"
+        "  return fract(sin(n)*43758.5453);\n"
+        "}\n"
+        "float noise( vec3 x )\n"
+        "{\n"
+        "  vec3 p = floor(x);\n"
+        "  vec3 f = fract(x);\n"
+        "  f = f*f*(3.0-2.0*f);\n"
+        "  float n = p.x + p.y*57.0 + 113.0*p.z;\n"
+        "  return mix(mix(mix( iqhash(n+0.0 ), iqhash(n+1.0 ),f.x),\n"
+        "  mix( iqhash(n+57.0 ), iqhash(n+58.0 ),f.x),f.y),\n"
+        "  mix(mix( iqhash(n+113.0), iqhash(n+114.0),f.x),\n"
+        "  mix( iqhash(n+170.0), iqhash(n+171.0),f.x),f.y),f.z);\n"
+        "}\n"
+        "void main()\n"
+        "{\n"
+        "  v = vPosition;\n"
+        "  vec3 v2 = v;\n"
+        "  v2.x = v2.x + time;\n"
+        "  v2.z = v.z * 2.0;\n"
+        "  v2.x = v2.x / 4.0;\n"
+        "  v.y = -cos((v.x+v.z/3.0+time/6.0)*2.0)/5.0 - noise(v2.xyz)/4.0;\n"
+        "  gl_Position = vec4(v, 1.0);\n"
+        "  fragVertexEc = gl_Position.xyz;\n"
+        "}\n";
+
 
     GLbyte fShaderStr[] =
-        "uniform float time;                         \n"
-        "varying vec3 v;                             \n"
-        "void main()                                 \n"
-        "{                                           \n"
-        "  gl_FragColor = vec4(1.0, 1.0, 1.0, 0.25); \n"
-        "}                                           \n";
+        "#ifdef GL_ES\n"
+        "precision mediump float;\n"
+        "#endif\n"
+        "uniform float time;\n"
+        "varying vec3 fragVertexEc;\n"
+        "vec3 up = vec3(0.0, 0.0, 1.0);\n"
+        "void main()\n"
+        "{\n"
+        "  vec3 X = dFdx(fragVertexEc);\n"
+        "  vec3 Y = dFdy(fragVertexEc);\n"
+        "  vec3 normal=normalize(cross(X,Y));\n"
+        "  float c = (1.0 - dot(normal, up));\n"
+        "  c = (1.0 - cos(c*c))/2.0;\n"
+        "  gl_FragColor = vec4(c);\n"
+        "}\n";
 
     GLuint vertexShader;
     GLuint fragmentShader;
@@ -160,8 +180,6 @@ int main(void)
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-    timeLoc = glGetUniformLocation(programObject, "time");
-
     GLfloat vertices[1536];
     int indices[1024];
     int rows = 16;
@@ -204,7 +222,8 @@ int main(void)
         glDisable(GL_DEPTH_TEST);
 
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glBlendFunc(GL_ONE, GL_ONE);
 
         glDepthMask(0);
 
@@ -212,10 +231,11 @@ int main(void)
         glEnableVertexAttribArray(0);
 
         t += 0.01;
+        timeLoc = glGetUniformLocation(programObject, "time");
         glUniform1f(timeLoc, t);
 
-        glVertexPointer( 3, GL_FLOAT, 0, vertices );
-        glDrawElements( GL_TRIANGLE_STRIP, 1024, GL_UNSIGNED_INT, indices );
+        glVertexPointer(3, GL_FLOAT, 0, vertices);
+        glDrawElements(GL_TRIANGLE_STRIP, 1024, GL_UNSIGNED_INT, indices);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
