@@ -62,7 +62,9 @@ int main(void)
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
         exit(EXIT_FAILURE);
-    window = glfwCreateWindow(800, 800, "Simple example", NULL, NULL);
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    window = glfwCreateWindow(900, 600, "Simple example", NULL, NULL);
+    
     if (!window)
     {
         glfwTerminate();
@@ -209,6 +211,7 @@ int main(void)
     {
         int width, height, i = 0;
         glfwGetFramebufferSize(window, &width, &height);
+
 
         // Set the viewport
         glViewport(0, 0, width, height);
